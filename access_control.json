@@ -1,0 +1,36 @@
+{
+  "authorized_groups": {
+    "-1003280455169": {
+      "group_id": -1003280455169,
+      "invite_link": "https://t.me/+0R7WxgLyEYwxODZk",
+      "added_by": "Mumiru",
+      "added_at": "11/16/2025 07:31 AM"
+    },
+    "-1001510453323": {
+      "group_id": -1001510453323,
+      "invite_link": "https://t.me/+KMzNb4Ry85VlYTBl",
+      "added_by": "Mumiru",
+      "added_at": "11/16/2025 07:56 AM"
+    },
+    "-1002960465741": {
+      "group_id": -1002960465741,
+      "invite_link": "https://t.me/+WiokKyqE-CEyNzVk",
+      "added_by": "Mumiru",
+      "added_at": "11/16/2025 07:58 AM"
+    }
+  },
+  "premium_keys": {
+    "premium_MZjfrhRhKgVwQIDs": {
+      "code": "premium_MZjfrhRhKgVwQIDs",
+      "quantity": 1,
+      "days_valid": 1,
+      "created_by": "Mumiru",
+      "created_at": "11/16/2025 08:27 AM",
+      "remaining_uses": 0,
+      "used_by": [
+        "6124719858"
+      ]
+    }
+  },
+  "premium_users": {}
+}
