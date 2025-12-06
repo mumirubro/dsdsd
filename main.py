@@ -166,7 +166,7 @@ async def get_vbv_info(cc_number):
     try:
         timeout = aiohttp.ClientTimeout(total=10)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"https://ronak.xyz/vbv.php?cc={cc_number}"
+            url = f"https://ronak.xyz/vbv.php?lista={cc_number}"
             async with session.get(url) as response:
                 if response.status == 200:
                     text = await response.text()
@@ -1240,6 +1240,17 @@ def generate_card_number(bin_number):
     
     return bin_str + '0'
 
+def replace_x_with_random(text):
+    """Replace x/X characters with random digits"""
+    import random
+    result = ''
+    for char in text:
+        if char.lower() == 'x':
+            result += str(random.randint(0, 9))
+        else:
+            result += char
+    return result
+
 def parse_partial_card(card_input):
     """Parse partial card input and return card parts with indicators for what's missing"""
     import random
@@ -1252,9 +1263,9 @@ def parse_partial_card(card_input):
     year = None
     cvv = None
     
-    # Parse card number (first part)
+    # Parse card number (first part) - replace x's with random digits
     if len(parts) >= 1 and parts[0].strip():
-        card_number = parts[0].strip()
+        card_number = replace_x_with_random(parts[0].strip())
     
     # Parse month (second part)
     if len(parts) >= 2 and parts[1].strip() and parts[1].strip().lower() not in ['x', 'xx', 'xxx']:
@@ -5093,18 +5104,14 @@ async def mst_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if approved:
         msg += "✅ 𝗔𝗣𝗣𝗥𝗢𝗩𝗘𝗗 (𝗖𝗛𝗔𝗥𝗚𝗘𝗗 $1):\n"
-        for a in approved[:5]:
+        for a in approved:
             msg += f"{a}\n"
-        if len(approved) > 5:
-            msg += f"... and {len(approved)-5} more\n"
         msg += "\n"
     
     if declined:
         msg += "❌ 𝗗𝗘𝗖𝗟𝗜𝗡𝗘𝗗:\n"
-        for d in declined[:5]:
+        for d in declined:
             msg += f"{d}\n"
-        if len(declined) > 5:
-            msg += f"... and {len(declined)-5} more\n"
     
     msg += "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
@@ -5366,18 +5373,14 @@ async def mbt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if approved:
         msg += "✅ 𝗔𝗣𝗣𝗥𝗢𝗩𝗘𝗗 (𝗖𝗛𝗔𝗥𝗚𝗘𝗗):\n"
-        for a in approved[:5]:
+        for a in approved:
             msg += f"{a}\n"
-        if len(approved) > 5:
-            msg += f"... and {len(approved)-5} more\n"
         msg += "\n"
     
     if declined:
         msg += "❌ 𝗗𝗘𝗖𝗟𝗜𝗡𝗘𝗗:\n"
-        for d in declined[:5]:
+        for d in declined:
             msg += f"{d}\n"
-        if len(declined) > 5:
-            msg += f"... and {len(declined)-5} more\n"
     
     msg += "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
