@@ -73,7 +73,7 @@ async def get_vbv_info(card_number: str) -> str:
     """Fetch VBV (Verified by Visa) information for a card"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"https://ronak.xyz/vbv.php?cc={card_number}")
+            response = await client.get(f"https://ronak.xyz/vbv.php?lista={card_number}")
             if response.status_code == 200:
                 return response.text.strip()
     except Exception as e:
@@ -184,13 +184,13 @@ async def br_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         checker = BraintreeAutomatedChecker()
         
-        proxy_used = "LIVE"
+        proxy_used = "No Proxy"
         if data.get("active_proxy"):
             checker.session.proxies = {
                 "http": data["active_proxy"],
                 "https": data["active_proxy"]
             }
-            proxy_used = "ON"
+            proxy_used = "ALIVE"
         
         result = await asyncio.to_thread(checker.check_card, site_url, card_data)
         
@@ -257,9 +257,9 @@ async def mbr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🔄 Checking {len(cards)} cards... Please wait."
     )
     
-    proxy_used = "LIVE"
+    proxy_used = "No Proxy"
     if data.get("active_proxy"):
-        proxy_used = "ON"
+        proxy_used = "ALIVE"
     
     requester_username = update.effective_user.username or update.effective_user.first_name or "Unknown"
     

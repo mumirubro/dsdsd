@@ -124,7 +124,7 @@ async def get_vbv_info(cc_number):
     """Get VBV (3D Secure) information from API"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"https://ronak.xyz/vbv.php?cc={cc_number}")
+            response = await client.get(f"https://ronak.xyz/vbv.php?lista={cc_number}")
             if response.status_code == 200:
                 text = response.text
                 return text.strip() if text else 'N/A'
@@ -230,7 +230,7 @@ async def sh(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         card_display = f"{card_num}|{month}|{year}|{cvv}"
         
-        proxy_display = proxy[:40] if proxy else "No Proxy"
+        proxy_display = "ALIVE" if proxy else "No Proxy"
         username = update.effective_user.username or update.effective_user.first_name or "User"
         
         bin_num = ""

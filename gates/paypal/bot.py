@@ -35,7 +35,7 @@ async def get_vbv_info(card_number: str) -> str:
     """Fetch VBV (Verified by Visa) information for a card"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"https://ronak.xyz/vbv.php?cc={card_number}")
+            response = await client.get(f"https://ronak.xyz/vbv.php?lista={card_number}")
             if response.status_code == 200:
                 return response.text.strip()
     except Exception as e:

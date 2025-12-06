@@ -124,7 +124,7 @@ async def get_vbv_info(cc_number):
     try:
         timeout = aiohttp.ClientTimeout(total=10)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"https://ronak.xyz/vbv.php?cc={cc_number}"
+            url = f"https://ronak.xyz/vbv.php?lista={cc_number}"
             async with session.get(url) as response:
                 if response.status == 200:
                     text = await response.text()
