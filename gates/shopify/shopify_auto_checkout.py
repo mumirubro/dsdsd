@@ -4,8 +4,85 @@ import re
 import random
 import json
 from fake_useragent import UserAgent
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 import time
+
+def parse_proxy(proxy_str):
+    """
+    Convert various proxy formats to httpx-compatible format.
+    
+    Supported formats:
+    1. Standard: http://user:pass@host:port
+    2. BrightData: https://host:port:user:pass or host:port:user:pass
+    3. Simple: http://host:port or host:port
+    
+    Returns httpx-compatible proxy URL.
+    """
+    if not proxy_str:
+        return None
+    
+    proxy_str = proxy_str.strip()
+    
+    # Already in standard format with @ sign
+    if '@' in proxy_str:
+        # Ensure it has a scheme
+        if not proxy_str.startswith(('http://', 'https://', 'socks4://', 'socks5://')):
+            proxy_str = 'http://' + proxy_str
+        return proxy_str
+    
+    # Remove protocol prefix for parsing
+    original_scheme = 'http'
+    clean_proxy = proxy_str
+    if proxy_str.startswith('https://'):
+        original_scheme = 'http'  # Use http for the actual proxy connection
+        clean_proxy = proxy_str[8:]
+    elif proxy_str.startswith('http://'):
+        clean_proxy = proxy_str[7:]
+    elif proxy_str.startswith('socks5://'):
+        original_scheme = 'socks5'
+        clean_proxy = proxy_str[9:]
+    elif proxy_str.startswith('socks4://'):
+        original_scheme = 'socks4'
+        clean_proxy = proxy_str[9:]
+    
+    parts = clean_proxy.split(':')
+    
+    if len(parts) == 2:
+        # Simple format: host:port
+        host, port = parts
+        return f"{original_scheme}://{host}:{port}"
+    
+    elif len(parts) == 4:
+        # BrightData format: host:port:user:pass
+        host, port, user, password = parts
+        # URL encode username and password in case they have special characters
+        user_encoded = quote(user, safe='')
+        pass_encoded = quote(password, safe='')
+        return f"{original_scheme}://{user_encoded}:{pass_encoded}@{host}:{port}"
+    
+    elif len(parts) > 4:
+        # Complex BrightData format where username or password contains colons
+        # Format: host:port:user-with-possible-colons:password
+        # The username typically starts with 'brd-customer-' pattern
+        host = parts[0]
+        port = parts[1]
+        
+        # Find where the password starts (last part after the last colon)
+        # In BrightData, password is typically the last segment
+        password = parts[-1]
+        
+        # Everything between port and password is the username
+        user = ':'.join(parts[2:-1])
+        
+        # URL encode username and password
+        user_encoded = quote(user, safe='')
+        pass_encoded = quote(password, safe='')
+        return f"{original_scheme}://{user_encoded}:{pass_encoded}@{host}:{port}"
+    
+    # Couldn't parse, return as-is with scheme
+    if not proxy_str.startswith(('http://', 'https://', 'socks4://', 'socks5://')):
+        return f"http://{proxy_str}"
+    return proxy_str
 
 def find_between(s, start, end):
     try:
@@ -357,7 +434,10 @@ class ShopifyAuto:
         }
         
         if proxy:
-            client_kwargs['proxies'] = proxy
+            parsed_proxy = parse_proxy(proxy)
+            if parsed_proxy:
+                client_kwargs['proxy'] = parsed_proxy
+                print(f"🔌 Parsed proxy: {parsed_proxy[:50]}...")
         
         async with httpx.AsyncClient(**client_kwargs) as session:
             

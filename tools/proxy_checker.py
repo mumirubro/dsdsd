@@ -63,10 +63,17 @@ class ProxyChecker:
         parts = host_port.split(':')
         if len(parts) >= 2:
             if len(parts) == 4 and result['username'] is None:
+                # Standard format: host:port:user:pass
                 result['host'] = parts[0]
                 result['port'] = int(parts[1])
                 result['username'] = parts[2]
                 result['password'] = parts[3]
+            elif len(parts) > 4 and result['username'] is None:
+                # BrightData format where username contains colons: host:port:user-with-colons:pass
+                result['host'] = parts[0]
+                result['port'] = int(parts[1])
+                result['password'] = parts[-1]  # Last part is password
+                result['username'] = ':'.join(parts[2:-1])  # Everything between port and password is username
             elif len(parts) == 2:
                 result['host'] = parts[0]
                 result['port'] = int(parts[1])

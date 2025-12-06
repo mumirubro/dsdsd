@@ -5,7 +5,7 @@ import time
 import httpx
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
-from shopify_auto_checkout import ShopifyChecker
+from shopify_auto_checkout import ShopifyChecker, parse_proxy
 import json
 
 logging.basicConfig(
@@ -468,7 +468,9 @@ async def cp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         start_time = time.time()
         
-        async with httpx.AsyncClient(proxy=next_proxy, timeout=15.0) as client:
+        parsed_proxy = parse_proxy(next_proxy)
+        
+        async with httpx.AsyncClient(proxy=parsed_proxy, timeout=15.0) as client:
             response = await client.get('https://api.ipify.org?format=json')
             elapsed = time.time() - start_time
             
