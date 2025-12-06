@@ -13,3 +13,8 @@ rich>=13.7.0
 urllib3>=2.1.0
 colorama>=0.4.6
 aiohttp-socks
+crcli
+requests
+telegram
+dnspython
+httpx
